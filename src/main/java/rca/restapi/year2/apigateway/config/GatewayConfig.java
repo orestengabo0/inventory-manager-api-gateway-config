@@ -4,10 +4,17 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.web.authentication.AuthenticationFilter;
+import rca.restapi.year2.apigateway.filter.RateLimitingFilter;
 
 @Configuration
 public class GatewayConfig {
+    private final RateLimitingFilter rateLimitingFilter;
+
+    public GatewayConfig(RateLimitingFilter rateLimitingFilter) {
+        this.rateLimitingFilter = rateLimitingFilter;
+    }
+
+    @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder){
         return builder.routes()
                 .route("auth-service", r -> r
@@ -15,6 +22,9 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "auth-service")
+                                .filter(rateLimitingFilter.apply(
+                                        new RateLimitingFilter.Config(50, 25, 60, "auth")
+                                ))
                         )
                         .uri("lb://auth-service")
                 )
@@ -27,7 +37,8 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "catalog-service")
-                        )
+                                .filter(rateLimitingFilter.apply(new RateLimitingFilter.Config(
+                                        100, 50, 60, "catalog-read"))))
                         .uri("lb://catalog-service"))
 
                 .route("catalog-service-admin", r -> r
@@ -37,7 +48,9 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "catalog-service")
-                                .filter(authenticationFilter())
+                                .filter(rateLimitingFilter.apply(
+                                        new RateLimitingFilter.Config(20, 10, 60, "admin")
+                                ))
                         )
                         .uri("lb://catalog-service"))
 
@@ -47,7 +60,9 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "cart-service")
-                                .filter(authenticationFilter())
+                                .filter(rateLimitingFilter.apply(
+                                        new RateLimitingFilter.Config(60, 30, 60, "cart")
+                                ))
                         )
                         .uri("lb://cart-service"))
 
@@ -57,7 +72,9 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "order-service")
-                                .filter(authenticationFilter())
+                                .filter(rateLimitingFilter.apply(
+                                        new RateLimitingFilter.Config(40, 20, 60, "order")
+                                ))
                         )
                         .uri("lb://order-service"))
 
@@ -67,14 +84,17 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Service", "discount-service")
+                                .filter(rateLimitingFilter.apply(
+                                        new RateLimitingFilter.Config(80, 40, 60, "discount")
+                                ))
                         )
                         .uri("lb://discount-service"))
 
                 .build();
     }
 
-    @Bean
-    public AuthenticationFilter authenticationFilter(){
-        return new AuthenticationFilter();
-    }
+//    @Bean
+//    public AuthenticationFilter authenticationFilter(){
+//        return new AuthenticationFilter();
+//    }
 }

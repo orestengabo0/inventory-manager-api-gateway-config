@@ -11,3 +11,8 @@ jwt:
   secret:
 server:
   port: 8080
+
+rate-limiting:
+  default-capacity: 50
+  default-refill-tokens: 25
+  default-window-seconds: 60
